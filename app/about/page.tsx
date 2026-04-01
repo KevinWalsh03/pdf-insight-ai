@@ -68,7 +68,7 @@ export default function AboutPage() {
         <div className="flex flex-col md:flex-row items-center gap-8 bg-white border border-gray-100 shadow-sm rounded-3xl p-8">
           {/* Profile photo — place your image at public/images/kevin.jpg */}
           <Image
-            src="/images/Showcase.png"
+            src="/images/Showcase.PNG"
             alt="Kevin Walsh"
             width={128}
             height={128}
