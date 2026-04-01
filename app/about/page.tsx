@@ -68,11 +68,11 @@ export default function AboutPage() {
         <div className="flex flex-col md:flex-row items-center gap-8 bg-white border border-gray-100 shadow-sm rounded-3xl p-8">
           {/* Profile photo — place your image at public/images/kevin.jpg */}
           <Image
-            src="/images/showcase.png"
+            src="/images/Showcase.png"
             alt="Kevin Walsh"
             width={128}
             height={128}
-            className="object-cover object-top"
+            className="flex-shrink-0 w-32 h-32 rounded-full object-cover object-top shadow-lg"
           />
           <div>
             <h3 className="text-xl font-bold text-gray-900 mb-1">Kevin Walsh</h3>
