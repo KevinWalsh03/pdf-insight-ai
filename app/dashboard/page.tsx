@@ -1,12 +1,13 @@
-// Protected dashboard — checks user plan and upload count from Supabase
+// Protected dashboard — fetches profile + documents, renders upload UI
 import { UserButton } from "@clerk/nextjs";
 import { currentUser } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import UploadSection from "./UploadSection";
+import Link from "next/link";
 
 const FREE_UPLOAD_LIMIT = 3;
 
 async function getOrCreateProfile(clerkUserId: string) {
-  // Try to fetch existing profile
   const { data: existing } = await supabaseAdmin
     .from("profiles")
     .select("*")
@@ -14,7 +15,6 @@ async function getOrCreateProfile(clerkUserId: string) {
     .single();
 
   if (existing) {
-    // Reset weekly count if a new week has started
     const resetAt = new Date(existing.week_reset_at);
     const now = new Date();
     if (now > resetAt) {
@@ -32,7 +32,6 @@ async function getOrCreateProfile(clerkUserId: string) {
     return existing;
   }
 
-  // Create new profile for first-time users
   const { data: created } = await supabaseAdmin
     .from("profiles")
     .insert({
@@ -49,7 +48,17 @@ async function getOrCreateProfile(clerkUserId: string) {
 
 export default async function DashboardPage() {
   const user = await currentUser();
-  const profile = user ? await getOrCreateProfile(user.id) : null;
+  if (!user) return null;
+
+  const [profile, { data: documents }] = await Promise.all([
+    getOrCreateProfile(user.id),
+    supabaseAdmin
+      .from("documents")
+      .select("*")
+      .eq("clerk_user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(10),
+  ]);
 
   const isPaid = profile?.plan === "paid";
   const uploadsUsed = profile?.uploads_this_week ?? 0;
@@ -61,72 +70,38 @@ export default async function DashboardPage() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-10">
+        <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-extrabold text-gray-900">
-              Welcome back, {user?.firstName ?? "there"} 👋
+              Welcome back, {user.firstName ?? "there"} 👋
             </h1>
-            <p className="text-gray-500 mt-1">Here's your PDF Insight AI dashboard.</p>
+            <p className="text-gray-500 mt-1">Upload a PDF to get started.</p>
           </div>
           <UserButton afterSignOutUrl="/" />
         </div>
 
         {/* Plan badge */}
-        <div className="flex items-center gap-3 mb-8">
+        <div className="flex items-center gap-3 mb-6">
           <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-            isPaid
-              ? "bg-indigo-100 text-indigo-700"
-              : "bg-gray-100 text-gray-600"
+            isPaid ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-600"
           }`}>
             {isPaid ? "⭐ Pro Plan" : "Free Plan"}
           </span>
-          {!isPaid && (
-            <span className="text-sm text-gray-500">
-              {uploadsUsed}/{FREE_UPLOAD_LIMIT} uploads used this week
-              {atLimit && (
-                <span className="ml-2 text-red-500 font-medium">— Limit reached</span>
-              )}
-            </span>
-          )}
-          {isPaid && (
-            <span className="text-sm text-gray-500">Unlimited uploads</span>
-          )}
+          <span className="text-sm text-gray-500">
+            {isPaid ? "Unlimited uploads" : `${uploadsUsed}/${FREE_UPLOAD_LIMIT} uploads used this week`}
+            {atLimit && <span className="ml-2 text-red-500 font-medium">— Limit reached</span>}
+          </span>
         </div>
 
         {/* Upload area */}
-        <div className={`bg-white rounded-2xl border-2 border-dashed p-16 text-center shadow-sm ${
-          atLimit ? "border-red-200 opacity-60" : "border-indigo-200"
-        }`}>
-          <div className="text-5xl mb-4">📄</div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Upload a PDF</h2>
-          <p className="text-gray-500 text-sm mb-6">
-            {atLimit
-              ? "You've reached your free limit. Upgrade to Pro for unlimited uploads."
-              : "Drag and drop your PDF here, or click to browse."}
-          </p>
-          <button
-            disabled={atLimit}
-            className={`font-semibold px-6 py-2.5 rounded-lg transition ${
-              atLimit
-                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                : "gradient-bg text-white hover:opacity-90"
-            }`}
-          >
-            {atLimit ? "Upgrade to Upload" : "Choose File"}
-          </button>
-          {!isPaid && (
-            <p className="text-gray-400 text-xs mt-4">
-              Free plan: {uploadsRemaining} upload{uploadsRemaining === 1 ? "" : "s"} remaining this week
-            </p>
-          )}
-        </div>
+        <UploadSection atLimit={atLimit} uploadsRemaining={uploadsRemaining} isPaid={isPaid} />
 
-        {/* Upgrade banner for free users */}
+        {/* Upgrade banner */}
         {!isPaid && (
           <div className="mt-6 bg-gradient-to-r from-indigo-600 to-cyan-500 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
               <p className="text-white font-bold text-lg">Upgrade to Pro</p>
-              <p className="text-indigo-100 text-sm">Unlimited uploads, priority processing, and advanced AI insights.</p>
+              <p className="text-indigo-100 text-sm">Unlimited uploads, priority AI processing, and advanced insights.</p>
             </div>
             <button className="bg-white text-indigo-600 font-semibold px-6 py-2.5 rounded-lg hover:bg-indigo-50 transition flex-shrink-0">
               Upgrade Now →
@@ -134,12 +109,37 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        {/* Recent uploads placeholder */}
+        {/* Recent documents */}
         <div className="mt-10">
           <h2 className="text-lg font-bold text-gray-900 mb-4">Recent Documents</h2>
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center text-gray-400 text-sm">
-            No documents yet — upload your first PDF above.
-          </div>
+          {documents && documents.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {documents.map((doc: any) => (
+                <Link
+                  key={doc.id}
+                  href={`/document/${doc.id}`}
+                  className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md hover:-translate-y-0.5 transition-all"
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">📄</span>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-900 text-sm truncate">{doc.file_name}</p>
+                      <p className="text-gray-400 text-xs mt-1">
+                        {new Date(doc.created_at).toLocaleDateString()}
+                      </p>
+                      {doc.ai_summary && (
+                        <p className="text-gray-500 text-xs mt-2 line-clamp-2">{doc.ai_summary}</p>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center text-gray-400 text-sm">
+              No documents yet — upload your first PDF above.
+            </div>
+          )}
         </div>
 
       </div>
