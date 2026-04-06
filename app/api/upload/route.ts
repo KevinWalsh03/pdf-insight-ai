@@ -87,7 +87,9 @@ Do not include any text outside the JSON object.`,
       ],
     });
 
-    const responseText = message.content[0].type === "text" ? message.content[0].text : "";
+    const rawText = message.content[0].type === "text" ? message.content[0].text : "";
+    // Strip markdown code blocks if Claude wraps the response
+    const responseText = rawText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
     const parsed = JSON.parse(responseText);
     summary = parsed.summary ?? "";
     insights = parsed.insights ?? [];
