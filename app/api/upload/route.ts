@@ -56,9 +56,10 @@ export async function POST(req: NextRequest) {
   let recommendations: string[] = [];
 
   try {
-    const message = await anthropic.messages.create({
+    const message = await (anthropic as any).beta.messages.create({
       model: "claude-opus-4-6",
       max_tokens: 2048,
+      betas: ["pdfs-2024-09-25"],
       messages: [
         {
           role: "user",
@@ -70,7 +71,7 @@ export async function POST(req: NextRequest) {
                 media_type: "application/pdf",
                 data: base64Pdf,
               },
-            } as any,
+            },
             {
               type: "text",
               text: `Analyze this PDF document and respond ONLY with a valid JSON object in this exact format:
