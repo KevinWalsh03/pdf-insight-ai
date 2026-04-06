@@ -1,14 +1,17 @@
-// Document viewer — shows AI summary, insights, and recommendations
+// Document viewer + editor — AI sidebar + PDF editing
 import { auth } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import dynamic from "next/dynamic";
+
+// Dynamically import editor (uses browser APIs, no SSR)
+const PDFEditor = dynamic(() => import("@/components/PDFEditor"), { ssr: false });
 
 export default async function DocumentPage({ params }: { params: { id: string } }) {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
 
-  // Fetch document — only if it belongs to this user
   const { data: doc, error } = await supabaseAdmin
     .from("documents")
     .select("*")
@@ -29,7 +32,6 @@ export default async function DocumentPage({ params }: { params: { id: string } 
     );
   }
 
-  // Get signed download URL
   const { data: urlData } = await supabaseAdmin.storage
     .from("pdfs")
     .createSignedUrl(doc.file_path, 3600);
@@ -47,37 +49,21 @@ export default async function DocumentPage({ params }: { params: { id: string } 
             <span className="text-gray-300">/</span>
             <h1 className="text-lg font-bold text-gray-900 truncate max-w-xs">{doc.file_name}</h1>
           </div>
-          {urlData?.signedUrl && (
-            <a
-              href={urlData.signedUrl}
-              download={doc.file_name}
-              className="gradient-bg text-white text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition"
-            >
-              Download PDF
-            </a>
-          )}
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6">
 
-          {/* ── Left: PDF embed ── */}
-          <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="bg-gray-900 flex items-center gap-1.5 px-4 py-2.5">
-              <span className="w-3 h-3 rounded-full bg-red-500" />
-              <span className="w-3 h-3 rounded-full bg-yellow-500" />
-              <span className="w-3 h-3 rounded-full bg-green-500" />
-              <span className="ml-4 text-gray-400 text-xs font-mono">{doc.file_name}</span>
-            </div>
+          {/* ── Left: PDF Editor ── */}
+          <div className="flex-1 min-w-0">
             {urlData?.signedUrl ? (
-              <iframe
-                src={urlData.signedUrl}
-                className="w-full"
-                style={{ height: "75vh" }}
-                title={doc.file_name}
+              <PDFEditor
+                pdfUrl={urlData.signedUrl}
+                documentId={doc.id}
+                fileName={doc.file_name}
               />
             ) : (
-              <div className="flex items-center justify-center h-96 text-gray-400">
-                Unable to load PDF preview.
+              <div className="flex items-center justify-center h-96 bg-white rounded-2xl border border-gray-100 text-gray-400">
+                Unable to load PDF.
               </div>
             )}
           </div>
@@ -132,7 +118,6 @@ export default async function DocumentPage({ params }: { params: { id: string } 
               </div>
             )}
 
-            {/* Uploaded date */}
             <p className="text-center text-gray-400 text-xs">
               Uploaded {new Date(doc.created_at).toLocaleDateString()}
             </p>
