@@ -66,8 +66,7 @@ export default function PDFEditor({ pdfUrl, documentId, fileName }: Props) {
 
     async function loadPDF() {
       const pdfjs = await import("pdfjs-dist");
-      pdfjs.GlobalWorkerOptions.workerSrc =
-        `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
+      pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
       const pdf = await pdfjs.getDocument({ url: pdfUrl, enableXfa: false }).promise;
       if (cancelled) return;
@@ -139,7 +138,8 @@ export default function PDFEditor({ pdfUrl, documentId, fileName }: Props) {
     if (!pdfInstance || pageData.length === 0) return;
 
     async function renderPages() {
-      const pdfjs = await import("pdfjs-dist");
+      // pdfjs already initialized, just need it for the render call
+      await import("pdfjs-dist");
       for (let i = 0; i < pageData.length; i++) {
         const canvas = canvasRefs.current[i];
         if (!canvas) continue;
