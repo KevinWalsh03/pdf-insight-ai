@@ -1,17 +1,19 @@
 "use client";
 // PDF Editor — renders pages via pdfjs, overlays editable text, saves via pdf-lib API
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface TextItem {
   pageIndex: number;
   itemIndex: number;
   text: string;
-  x: number;      // PDF coordinate space
+  // PDF coordinate space (for pdf-lib)
+  x: number;
   y: number;
   width: number;
   height: number;
   fontSize: number;
-  canvasX: number; // screen coordinate space
+  // Canvas coordinate space (for overlay positioning)
+  canvasX: number;
   canvasY: number;
   canvasWidth: number;
   canvasHeight: number;
@@ -29,6 +31,12 @@ interface Edit {
   fontSize: number;
 }
 
+interface PageData {
+  width: number;
+  height: number;
+  textItems: TextItem[];
+}
+
 interface Props {
   pdfUrl: string;
   documentId: string;
@@ -38,59 +46,58 @@ interface Props {
 const SCALE = 1.5;
 
 export default function PDFEditor({ pdfUrl, documentId, fileName }: Props) {
-  const [pages, setPages] = useState<{ canvas: HTMLCanvasElement; textItems: TextItem[] }[]>([]);
+  const [numPages, setNumPages] = useState(0);
+  const [pageData, setPageData] = useState<PageData[]>([]);
+  const [pdfInstance, setPdfInstance] = useState<any>(null);
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [activeEdit, setActiveEdit] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
 
-  const editKey = (item: TextItem) => `${item.pageIndex}-${item.itemIndex}`;
+  // One ref per page canvas
+  const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
 
-  // Load and render the PDF
+  const editKey = (pageIndex: number, itemIndex: number) => `${pageIndex}-${itemIndex}`;
+
+  // Step 1: Load the PDF and extract text data
   useEffect(() => {
     let cancelled = false;
 
     async function loadPDF() {
-      // Dynamically import pdfjs to avoid SSR issues
       const pdfjs = await import("pdfjs-dist");
-      pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
+      pdfjs.GlobalWorkerOptions.workerSrc =
+        `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
 
-      const loadingTask = pdfjs.getDocument(pdfUrl);
-      const pdf = await loadingTask.promise;
-      const renderedPages: { canvas: HTMLCanvasElement; textItems: TextItem[] }[] = [];
+      const pdf = await pdfjs.getDocument({ url: pdfUrl, enableXfa: false }).promise;
+      if (cancelled) return;
 
+      setPdfInstance(pdf);
+      setNumPages(pdf.numPages);
+
+      // Extract text items for all pages
+      const allPageData: PageData[] = [];
       for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-        if (cancelled) break;
         const page = await pdf.getPage(pageNum);
         const viewport = page.getViewport({ scale: SCALE });
-
-        // Render page to canvas
-        const canvas = document.createElement("canvas");
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        await (page.render as any)({ canvas, viewport }).promise;
-
-        // Extract text items with positions
         const textContent = await page.getTextContent();
-        const textItems: TextItem[] = [];
 
+        const items: TextItem[] = [];
         (textContent.items as any[]).forEach((item, idx) => {
           if (!item.str?.trim()) return;
 
-          // Transform from PDF coords to canvas coords
+          // Screen coordinates for overlay
           const tx = pdfjs.Util.transform(viewport.transform, item.transform);
           const canvasX = tx[4];
           const canvasY = tx[5] - (item.height ?? 10) * SCALE;
-          const canvasWidth = item.width * SCALE;
-          const canvasHeight = (item.height ?? 10) * SCALE;
+          const canvasWidth = Math.max(item.width * SCALE, 20);
+          const canvasHeight = Math.max((item.height ?? 10) * SCALE, 12);
 
-          // PDF coordinate (for pdf-lib, origin is bottom-left)
+          // PDF coordinates for pdf-lib (scale 1, origin bottom-left)
           const pdfViewport = page.getViewport({ scale: 1 });
           const rawTx = pdfjs.Util.transform(pdfViewport.transform, item.transform);
 
-          textItems.push({
+          items.push({
             pageIndex: pageNum - 1,
             itemIndex: idx,
             text: item.str,
@@ -98,19 +105,23 @@ export default function PDFEditor({ pdfUrl, documentId, fileName }: Props) {
             y: rawTx[5] - (item.height ?? 10),
             width: item.width,
             height: item.height ?? 10,
-            fontSize: Math.abs(rawTx[3]) || 12,
+            fontSize: Math.max(Math.abs(rawTx[3]) || 12, 6),
             canvasX,
             canvasY,
             canvasWidth,
-            canvasHeight: Math.max(canvasHeight, 14),
+            canvasHeight,
           });
         });
 
-        renderedPages.push({ canvas, textItems });
+        allPageData.push({
+          width: viewport.width,
+          height: viewport.height,
+          textItems: items,
+        });
       }
 
       if (!cancelled) {
-        setPages(renderedPages);
+        setPageData(allPageData);
         setLoading(false);
       }
     }
@@ -123,20 +134,37 @@ export default function PDFEditor({ pdfUrl, documentId, fileName }: Props) {
     return () => { cancelled = true; };
   }, [pdfUrl]);
 
-  function handleTextChange(item: TextItem, value: string) {
-    setEdits((prev) => ({ ...prev, [editKey(item)]: value }));
-  }
+  // Step 2: Render each page onto its canvas once canvases are mounted
+  useEffect(() => {
+    if (!pdfInstance || pageData.length === 0) return;
 
-  function getCurrentText(item: TextItem) {
-    const key = editKey(item);
-    return key in edits ? edits[key] : item.text;
+    async function renderPages() {
+      const pdfjs = await import("pdfjs-dist");
+      for (let i = 0; i < pageData.length; i++) {
+        const canvas = canvasRefs.current[i];
+        if (!canvas) continue;
+
+        const page = await pdfInstance.getPage(i + 1);
+        const viewport = page.getViewport({ scale: SCALE });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        await (page.render as any)({ canvas, viewport }).promise;
+      }
+    }
+
+    renderPages().catch(console.error);
+  }, [pdfInstance, pageData]);
+
+  function getCurrentText(pageIndex: number, itemIndex: number, originalText: string) {
+    const key = editKey(pageIndex, itemIndex);
+    return key in edits ? edits[key] : originalText;
   }
 
   function hasChanges() {
     return Object.entries(edits).some(([key, val]) => {
-      const [pageIndex, itemIndex] = key.split("-").map(Number);
-      const item = pages[pageIndex]?.textItems[itemIndex];
-      return item && val !== item.text;
+      const [pi, ii] = key.split("-").map(Number);
+      return pageData[pi]?.textItems[ii]?.text !== val;
     });
   }
 
@@ -144,15 +172,14 @@ export default function PDFEditor({ pdfUrl, documentId, fileName }: Props) {
     if (!hasChanges()) return;
     setSaving(true);
 
-    // Build list of actual changes
     const changes: Edit[] = Object.entries(edits)
       .filter(([key, val]) => {
         const [pi, ii] = key.split("-").map(Number);
-        return pages[pi]?.textItems[ii]?.text !== val;
+        return pageData[pi]?.textItems[ii]?.text !== val;
       })
       .map(([key, newText]) => {
         const [pi, ii] = key.split("-").map(Number);
-        const item = pages[pi].textItems[ii];
+        const item = pageData[pi].textItems[ii];
         return {
           pageIndex: item.pageIndex,
           itemIndex: item.itemIndex,
@@ -183,7 +210,6 @@ export default function PDFEditor({ pdfUrl, documentId, fileName }: Props) {
     } else {
       alert("Failed to save edits. Please try again.");
     }
-
     setSaving(false);
   }
 
@@ -206,15 +232,13 @@ export default function PDFEditor({ pdfUrl, documentId, fileName }: Props) {
           <button
             onClick={() => setEditMode(!editMode)}
             className={`text-sm font-semibold px-4 py-1.5 rounded-lg transition ${
-              editMode
-                ? "gradient-bg text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              editMode ? "gradient-bg text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
             }`}
           >
             {editMode ? "✏️ Editing" : "✏️ Edit Mode"}
           </button>
           {editMode && (
-            <p className="text-xs text-gray-400">Click any highlighted text to edit it</p>
+            <p className="text-xs text-gray-400">Click any highlighted text to edit</p>
           )}
         </div>
         <button
@@ -231,35 +255,26 @@ export default function PDFEditor({ pdfUrl, documentId, fileName }: Props) {
       </div>
 
       {/* Pages */}
-      <div ref={containerRef} className="space-y-4">
-        {pages.map(({ canvas, textItems }, pageIdx) => (
-          <div key={pageIdx} className="relative bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100">
-            {/* Page label */}
-            <div className="bg-gray-900 text-gray-400 text-xs px-3 py-1.5">
-              Page {pageIdx + 1}
+      <div className="space-y-4">
+        {pageData.map((page, pageIdx) => (
+          <div key={pageIdx} className="rounded-xl overflow-hidden shadow-sm border border-gray-200 bg-white">
+            <div className="bg-gray-900 text-gray-400 text-xs px-3 py-1.5 font-mono">
+              Page {pageIdx + 1} of {numPages}
             </div>
 
-            {/* Canvas + overlay */}
-            <div className="relative" style={{ width: canvas.width, maxWidth: "100%" }}>
-              {/* Rendered PDF page */}
+            {/* Canvas + text overlay container */}
+            <div
+              className="relative"
+              style={{ width: page.width, maxWidth: "100%", height: page.height }}
+            >
               <canvas
-                ref={(el) => {
-                  if (el && el !== canvas) {
-                    el.width = canvas.width;
-                    el.height = canvas.height;
-                    el.getContext("2d")!.drawImage(canvas, 0, 0);
-                  } else if (el === canvas) {
-                    el.style.display = "block";
-                  }
-                }}
-                width={canvas.width}
-                height={canvas.height}
-                style={{ display: "block", maxWidth: "100%", height: "auto" }}
+                ref={(el) => { canvasRefs.current[pageIdx] = el; }}
+                style={{ display: "block", width: "100%", height: "100%" }}
               />
 
-              {/* Text overlays — only visible in edit mode */}
-              {editMode && textItems.map((item) => {
-                const key = editKey(item);
+              {/* Text overlays — only in edit mode */}
+              {editMode && page.textItems.map((item) => {
+                const key = editKey(item.pageIndex, item.itemIndex);
                 const isActive = activeEdit === key;
                 const isEdited = key in edits && edits[key] !== item.text;
 
@@ -270,30 +285,32 @@ export default function PDFEditor({ pdfUrl, documentId, fileName }: Props) {
                       position: "absolute",
                       left: item.canvasX,
                       top: item.canvasY,
-                      width: Math.max(item.canvasWidth, 40),
-                      height: Math.max(item.canvasHeight, 14),
-                      fontSize: item.fontSize * SCALE * 0.75,
+                      width: item.canvasWidth,
+                      height: item.canvasHeight,
+                      fontSize: item.fontSize * SCALE * 0.72,
                     }}
                   >
                     {isActive ? (
                       <input
                         autoFocus
-                        value={getCurrentText(item)}
-                        onChange={(e) => handleTextChange(item, e.target.value)}
+                        value={getCurrentText(item.pageIndex, item.itemIndex, item.text)}
+                        onChange={(e) =>
+                          setEdits((prev) => ({ ...prev, [key]: e.target.value }))
+                        }
                         onBlur={() => setActiveEdit(null)}
                         onKeyDown={(e) => e.key === "Enter" && setActiveEdit(null)}
-                        className="w-full h-full bg-white border-2 border-indigo-500 rounded px-0.5 text-gray-900 outline-none"
+                        className="w-full h-full bg-white/95 border-2 border-indigo-500 rounded px-0.5 text-gray-900 outline-none"
                         style={{ fontSize: "inherit" }}
                       />
                     ) : (
                       <div
                         onClick={() => setActiveEdit(key)}
-                        className={`w-full h-full cursor-text rounded px-0.5 transition ${
+                        className={`w-full h-full cursor-text rounded transition ${
                           isEdited
-                            ? "bg-yellow-200/70 border border-yellow-400"
-                            : "hover:bg-indigo-100/50 hover:border hover:border-indigo-300"
+                            ? "bg-yellow-200/80 border border-yellow-400"
+                            : "hover:bg-indigo-100/60 hover:border hover:border-indigo-400"
                         }`}
-                        title={isEdited ? `Edited: "${getCurrentText(item)}"` : `Click to edit: "${item.text}"`}
+                        title={isEdited ? `Edited: "${getCurrentText(item.pageIndex, item.itemIndex, item.text)}"` : `"${item.text}"`}
                       />
                     )}
                   </div>
@@ -306,7 +323,7 @@ export default function PDFEditor({ pdfUrl, documentId, fileName }: Props) {
 
       {hasChanges() && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-800">
-          You have unsaved edits. Click <strong>"Download Edited PDF"</strong> to apply and download your changes.
+          You have unsaved edits. Click <strong>"Download Edited PDF"</strong> to apply and download.
         </div>
       )}
     </div>
