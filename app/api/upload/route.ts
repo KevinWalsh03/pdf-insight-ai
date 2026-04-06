@@ -125,6 +125,4 @@ Do not include any text outside the JSON object.`,
 }
 
 // Allow up to 10MB uploads
-export const config = {
-  api: { bodyParser: false },
-};
+export const maxDuration = 60;
