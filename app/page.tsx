@@ -1,5 +1,7 @@
-// Homepage — hero, features, email capture
-import EmailCapture from "@/components/EmailCapture";
+"use client";
+// Homepage — hero, features, social proof, sign up CTA
+import { SignUpButton, SignedIn, SignedOut } from "@clerk/nextjs";
+import Link from "next/link";
 
 const features = [
   {
@@ -24,7 +26,6 @@ const features = [
   },
 ];
 
-
 const testimonials = [
   {
     quote: "I have spent so much time looking for PDF editors that are affordable and actually work. PDF Insight AI presents a unique solution to a familiar problem.",
@@ -43,20 +44,17 @@ const testimonials = [
   },
 ];
 
-
 export default function HomePage() {
   return (
     <>
       {/* ── Hero ── */}
       <section className="relative overflow-hidden bg-gradient-to-br from-indigo-950 via-indigo-900 to-gray-950 text-white">
-        {/* Decorative blobs */}
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-indigo-500 opacity-20 rounded-full blur-3xl" />
         <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-cyan-500 opacity-20 rounded-full blur-3xl" />
 
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-28 text-center">
-          {/* Badge */}
           <span className="inline-block mb-6 px-4 py-1.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-sm font-medium">
-            Now in Early Access 
+            Now in Early Access
           </span>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight mb-6">
@@ -71,12 +69,22 @@ export default function HomePage() {
             instant summaries, smart insights, and highlighted references.
           </p>
 
-          <a
-            href="#early-access"
-            className="inline-block gradient-bg text-white font-semibold px-8 py-3.5 rounded-xl text-lg shadow-lg hover:opacity-90 transition hover:scale-105"
-          >
-            Get Early Access 
-          </a>
+          {/* CTA — sign up if logged out, go to dashboard if logged in */}
+          <SignedOut>
+            <SignUpButton mode="modal">
+              <button className="inline-block gradient-bg text-white font-semibold px-8 py-3.5 rounded-xl text-lg shadow-lg hover:opacity-90 transition hover:scale-105">
+                Get Early Access — It's Free
+              </button>
+            </SignUpButton>
+          </SignedOut>
+          <SignedIn>
+            <Link
+              href="/dashboard"
+              className="inline-block gradient-bg text-white font-semibold px-8 py-3.5 rounded-xl text-lg shadow-lg hover:opacity-90 transition hover:scale-105"
+            >
+              Go to Dashboard →
+            </Link>
+          </SignedIn>
 
           {/* Mockup preview */}
           <div className="mt-16 relative mx-auto max-w-4xl rounded-2xl overflow-hidden shadow-2xl border border-white/10">
@@ -87,7 +95,6 @@ export default function HomePage() {
               <span className="ml-4 text-gray-500 text-xs">PDF Insight AI — Q4 Report.pdf</span>
             </div>
             <div className="flex bg-gray-950 min-h-56">
-              {/* Fake PDF panel */}
               <div className="flex-1 p-6 space-y-3 border-r border-gray-800">
                 <div className="h-4 bg-gray-700 rounded w-3/4" />
                 <div className="h-3 bg-indigo-900/60 border-l-4 border-indigo-500 rounded pl-2 w-full" />
@@ -97,7 +104,6 @@ export default function HomePage() {
                 <div className="h-3 bg-cyan-900/40 border-l-4 border-cyan-400 rounded pl-2 w-11/12" />
                 <div className="h-3 bg-gray-800 rounded w-2/3" />
               </div>
-              {/* Fake AI sidebar */}
               <div className="w-56 p-4 space-y-3">
                 <p className="text-indigo-400 text-xs font-semibold uppercase tracking-wide">AI Summary</p>
                 <div className="h-2 bg-gray-700 rounded w-full" />
@@ -165,17 +171,30 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Early Access / Email Capture ── */}
-      <section id="early-access" className="py-24 bg-gradient-to-br from-indigo-950 to-gray-950">
+      {/* ── Bottom CTA ── */}
+      <section className="py-24 bg-gradient-to-br from-indigo-950 to-gray-950">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-4">
-            Be first to get access
+            Ready to work smarter?
           </h2>
           <p className="text-indigo-300 mb-10 max-w-lg mx-auto">
-            We're rolling out early access in batches. Drop your details and we'll
-            notify you the moment a spot opens up.
+            Create a free account and start editing, summarizing, and understanding your PDFs in seconds.
           </p>
-          <EmailCapture />
+          <SignedOut>
+            <SignUpButton mode="modal">
+              <button className="gradient-bg text-white font-semibold px-8 py-3.5 rounded-xl text-lg shadow-lg hover:opacity-90 transition hover:scale-105">
+                Create Free Account →
+              </button>
+            </SignUpButton>
+          </SignedOut>
+          <SignedIn>
+            <Link
+              href="/dashboard"
+              className="inline-block gradient-bg text-white font-semibold px-8 py-3.5 rounded-xl text-lg shadow-lg hover:opacity-90 transition hover:scale-105"
+            >
+              Go to Dashboard →
+            </Link>
+          </SignedIn>
         </div>
       </section>
     </>
