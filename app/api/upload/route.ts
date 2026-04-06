@@ -92,10 +92,9 @@ Do not include any text outside the JSON object.`,
     summary = parsed.summary ?? "";
     insights = parsed.insights ?? [];
     recommendations = parsed.recommendations ?? [];
-  } catch (err) {
-    // If Claude analysis fails, continue with empty analysis
-    console.error("Claude analysis failed:", err);
-    summary = "Analysis unavailable for this document.";
+  } catch (err: any) {
+    console.error("Claude analysis failed:", JSON.stringify(err?.message || err));
+    summary = `Analysis failed: ${err?.message ?? "Unknown error"}`;
   }
 
   // 6. Save document record to Supabase
