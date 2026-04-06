@@ -274,6 +274,7 @@ export default function PDFEditor({ pdfUrl, documentId, fileName }: Props) {
 
               {/* Text overlays — only in edit mode */}
               {editMode && page.textItems.map((item) => {
+
                 const key = editKey(item.pageIndex, item.itemIndex);
                 const isActive = activeEdit === key;
                 const isEdited = key in edits && edits[key] !== item.text;
@@ -288,6 +289,7 @@ export default function PDFEditor({ pdfUrl, documentId, fileName }: Props) {
                       width: item.canvasWidth,
                       height: item.canvasHeight,
                       fontSize: item.fontSize * SCALE * 0.72,
+                      zIndex: 10,
                     }}
                   >
                     {isActive ? (
@@ -299,8 +301,8 @@ export default function PDFEditor({ pdfUrl, documentId, fileName }: Props) {
                         }
                         onBlur={() => setActiveEdit(null)}
                         onKeyDown={(e) => e.key === "Enter" && setActiveEdit(null)}
-                        className="w-full h-full bg-white/95 border-2 border-indigo-500 rounded px-0.5 text-gray-900 outline-none"
-                        style={{ fontSize: "inherit" }}
+                        className="w-full h-full bg-white border-2 border-indigo-500 rounded px-0.5 text-gray-900 outline-none"
+                        style={{ fontSize: "inherit", zIndex: 20, position: "relative" }}
                       />
                     ) : (
                       <div
