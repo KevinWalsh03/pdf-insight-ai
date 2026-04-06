@@ -1,8 +1,9 @@
 "use client";
-// Sticky top navbar with logo and nav links
+// Sticky top navbar with logo, nav links, and Clerk auth buttons
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 
 const links = [
   { href: "/", label: "Home" },
@@ -39,12 +40,36 @@ export default function Navbar() {
               {l.label}
             </Link>
           ))}
-          <Link
-            href="/#early-access"
-            className="ml-2 gradient-bg text-white text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition"
-          >
-            Get Early Access
-          </Link>
+
+          {/* Show dashboard link when signed in */}
+          <SignedIn>
+            <Link
+              href="/dashboard"
+              className={`text-sm font-medium transition-colors hover:text-indigo-600 ${
+                pathname === "/dashboard" ? "text-indigo-600" : "text-gray-600"
+              }`}
+            >
+              Dashboard
+            </Link>
+          </SignedIn>
+
+          {/* Auth buttons */}
+          <SignedOut>
+            <SignInButton mode="modal">
+              <button className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition">
+                Sign In
+              </button>
+            </SignInButton>
+            <SignUpButton mode="modal">
+              <button className="ml-2 gradient-bg text-white text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition">
+                Get Early Access
+              </button>
+            </SignUpButton>
+          </SignedOut>
+
+          <SignedIn>
+            <UserButton afterSignOutUrl="/" />
+          </SignedIn>
         </nav>
 
         {/* Mobile hamburger */}
@@ -74,13 +99,26 @@ export default function Navbar() {
               {l.label}
             </Link>
           ))}
-          <Link
-            href="/#early-access"
-            onClick={() => setOpen(false)}
-            className="gradient-bg text-white text-sm font-semibold px-4 py-2 rounded-lg text-center"
-          >
-            Get Early Access
-          </Link>
+          <SignedIn>
+            <Link
+              href="/dashboard"
+              onClick={() => setOpen(false)}
+              className="text-sm font-medium text-gray-700"
+            >
+              Dashboard
+            </Link>
+            <UserButton afterSignOutUrl="/" />
+          </SignedIn>
+          <SignedOut>
+            <SignInButton mode="modal">
+              <button className="text-sm font-medium text-gray-700 text-left">Sign In</button>
+            </SignInButton>
+            <SignUpButton mode="modal">
+              <button className="gradient-bg text-white text-sm font-semibold px-4 py-2 rounded-lg text-center">
+                Get Early Access
+              </button>
+            </SignUpButton>
+          </SignedOut>
         </div>
       )}
     </header>
