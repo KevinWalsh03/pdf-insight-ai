@@ -3,6 +3,7 @@ import { UserButton } from "@clerk/nextjs";
 import { currentUser } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import UploadSection from "./UploadSection";
+import { UpgradeBanner, ManageSubscriptionButton } from "./UpgradeBanner";
 import Link from "next/link";
 
 const FREE_UPLOAD_LIMIT = 3;
@@ -96,16 +97,12 @@ export default async function DashboardPage() {
         {/* Upload area */}
         <UploadSection atLimit={atLimit} uploadsRemaining={uploadsRemaining} isPaid={isPaid} />
 
-        {/* Upgrade banner */}
-        {!isPaid && (
-          <div className="mt-6 bg-gradient-to-r from-indigo-600 to-cyan-500 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div>
-              <p className="text-white font-bold text-lg">Upgrade to Pro</p>
-              <p className="text-indigo-100 text-sm">Unlimited uploads, priority AI processing, and advanced insights.</p>
-            </div>
-            <button className="bg-white text-indigo-600 font-semibold px-6 py-2.5 rounded-lg hover:bg-indigo-50 transition flex-shrink-0">
-              Upgrade Now →
-            </button>
+        {/* Upgrade banner / manage subscription */}
+        {!isPaid ? (
+          <UpgradeBanner />
+        ) : (
+          <div className="mt-6 flex justify-end">
+            <ManageSubscriptionButton />
           </div>
         )}
 

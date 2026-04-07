@@ -1,0 +1,42 @@
+// Stripe webhook — listens for payment events and updates user plan in Supabase
+import { NextRequest, NextResponse } from "next/server";
+import { stripe } from "@/lib/stripe";
+import { supabaseAdmin } from "@/lib/supabase";
+import Stripe from "stripe";
+
+export async function POST(req: NextRequest) {
+  const body = await req.text();
+  const sig = req.headers.get("stripe-signature")!;
+
+  let event: Stripe.Event;
+  try {
+    event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
+  } catch {
+    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+  }
+
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object as Stripe.CheckoutSession;
+    const customerId = session.customer as string;
+
+    await supabaseAdmin
+      .from("profiles")
+      .update({ plan: "paid" })
+      .eq("stripe_customer_id", customerId);
+  }
+
+  if (event.type === "customer.subscription.deleted") {
+    const sub = event.data.object as Stripe.Subscription;
+    const customerId = sub.customer as string;
+
+    await supabaseAdmin
+      .from("profiles")
+      .update({ plan: "free" })
+      .eq("stripe_customer_id", customerId);
+  }
+
+  return NextResponse.json({ received: true });
+}
+
+// Stripe needs the raw body — disable body parsing
+export const config = { api: { bodyParser: false } };
