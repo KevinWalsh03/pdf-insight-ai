@@ -309,13 +309,19 @@ export default function PDFEditor({ pdfUrl, documentId, fileName }: Props) {
                     ) : (
                       <div
                         onClick={() => setActiveEdit(key)}
-                        className={`w-full h-full cursor-text rounded transition ${
+                        className={`w-full h-full cursor-text rounded transition flex items-center overflow-hidden ${
                           isEdited
                             ? "bg-yellow-200/80 border border-yellow-400"
                             : "hover:bg-indigo-100/60 hover:border hover:border-indigo-400"
                         }`}
-                        title={isEdited ? `Edited: "${getCurrentText(item.pageIndex, item.itemIndex, item.text)}"` : `"${item.text}"`}
-                      />
+                        title={`Original: "${item.text}"${isEdited ? ` → Edited: "${getCurrentText(item.pageIndex, item.itemIndex, item.text)}"` : ""}`}
+                      >
+                        {isEdited && (
+                          <span className="text-yellow-800 font-medium truncate px-0.5" style={{ fontSize: "inherit" }}>
+                            {getCurrentText(item.pageIndex, item.itemIndex, item.text)}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                 );

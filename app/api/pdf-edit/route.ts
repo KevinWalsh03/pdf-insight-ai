@@ -53,25 +53,23 @@ export async function POST(req: NextRequest) {
     const page = pages[edit.pageIndex];
     const fontSize = Math.max(edit.fontSize, 6);
 
-    // edit.x, edit.y are in PDF user space (origin bottom-left)
-    // edit.y is the text baseline
-    // Cover original text: rect goes from below baseline to above ascenders
-    const rectY = edit.y - edit.height * 0.25;
-    const rectH = edit.height * 1.4;
+    // Use fontSize as the most reliable measure of text height
+    const textH = Math.max(edit.height, fontSize) * 1.5;
 
+    // White rectangle — generous padding to ensure full coverage of original text
     page.drawRectangle({
-      x: edit.x - 1,
-      y: rectY,
-      width: edit.width + 2,
-      height: rectH,
+      x: edit.x - 2,
+      y: edit.y - textH * 0.4,
+      width: edit.width + 4,
+      height: textH,
       color: rgb(1, 1, 1),
     });
 
-    // Draw new text at the original baseline position
+    // Draw new text at the original baseline
     if (edit.newText.trim()) {
       page.drawText(edit.newText, {
         x: edit.x,
-        y: edit.y,  // baseline
+        y: edit.y,
         size: fontSize,
         font: helvetica,
         color: rgb(0, 0, 0),
