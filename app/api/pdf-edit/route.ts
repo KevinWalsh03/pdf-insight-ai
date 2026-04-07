@@ -66,9 +66,9 @@ export async function POST(req: NextRequest) {
     // White rectangle — covers the original text
     page.drawRectangle({
       x: drawX - 2,
-      y: drawY - fontSize * 0.3,
+      y: drawY - fontSize * 0.25,
       width: edit.width + 4,
-      height: fontSize * 1.6,
+      height: fontSize * 1.1,
       color: rgb(1, 1, 1),
     });
 
