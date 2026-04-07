@@ -49,31 +49,32 @@ export async function POST(req: NextRequest) {
   // Apply each edit
   for (const edit of changes) {
     if (edit.pageIndex >= pages.length) continue;
-    if (!edit.newText && edit.newText !== "") continue;
 
     const page = pages[edit.pageIndex];
-    const { height: pageHeight } = page.getSize();
     const fontSize = Math.max(edit.fontSize, 6);
-    const padding = 1;
 
-    // Cover the original text with a white rectangle
+    // edit.x, edit.y are in PDF user space (origin bottom-left)
+    // edit.y is the text baseline
+    // Cover original text: rect goes from below baseline to above ascenders
+    const rectY = edit.y - edit.height * 0.25;
+    const rectH = edit.height * 1.4;
+
     page.drawRectangle({
-      x: edit.x - padding,
-      y: edit.y - padding,
-      width: edit.width + padding * 2,
-      height: edit.height + padding * 2,
+      x: edit.x - 1,
+      y: rectY,
+      width: edit.width + 2,
+      height: rectH,
       color: rgb(1, 1, 1),
     });
 
-    // Draw the new text at the same position
+    // Draw new text at the original baseline position
     if (edit.newText.trim()) {
       page.drawText(edit.newText, {
         x: edit.x,
-        y: edit.y,
+        y: edit.y,  // baseline
         size: fontSize,
         font: helvetica,
         color: rgb(0, 0, 0),
-        maxWidth: edit.width + 50,
       });
     }
   }

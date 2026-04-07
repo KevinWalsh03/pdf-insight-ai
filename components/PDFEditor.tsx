@@ -92,19 +92,21 @@ export default function PDFEditor({ pdfUrl, documentId, fileName }: Props) {
           const canvasWidth = Math.max(item.width * SCALE, 20);
           const canvasHeight = Math.max((item.height ?? 10) * SCALE, 12);
 
-          // PDF coordinates for pdf-lib (scale 1, origin bottom-left)
-          const pdfViewport = page.getViewport({ scale: 1 });
-          const rawTx = pdfjs.Util.transform(pdfViewport.transform, item.transform);
+          // PDF user space coordinates for pdf-lib
+          // item.transform is [a,b,c,d,e,f] where e=x, f=baseline y in PDF space
+          const pdfX = item.transform[4];
+          const pdfY = item.transform[5]; // this is the text baseline in PDF space
+          const pdfFontSize = Math.max(Math.abs(item.transform[3]) || 12, 6);
 
           items.push({
             pageIndex: pageNum - 1,
             itemIndex: idx,
             text: item.str,
-            x: rawTx[4],
-            y: rawTx[5] - (item.height ?? 10),
+            x: pdfX,
+            y: pdfY,
             width: item.width,
-            height: item.height ?? 10,
-            fontSize: Math.max(Math.abs(rawTx[3]) || 12, 6),
+            height: item.height ?? pdfFontSize,
+            fontSize: pdfFontSize,
             canvasX,
             canvasY,
             canvasWidth,
