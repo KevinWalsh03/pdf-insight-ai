@@ -79,6 +79,8 @@ export default function PDFEditor({ pdfUrl, documentId, fileName }: Props) {
       for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
         const page = await pdf.getPage(pageNum);
         const viewport = page.getViewport({ scale: SCALE });
+        // Scale-1 viewport for reliable PDF user space coordinate extraction
+        const viewport1 = page.getViewport({ scale: 1 });
         const textContent = await page.getTextContent();
 
         const items: TextItem[] = [];
@@ -93,9 +95,11 @@ export default function PDFEditor({ pdfUrl, documentId, fileName }: Props) {
           const canvasHeight = Math.max((item.height ?? 10) * SCALE, 12);
 
           // PDF user space coordinates for pdf-lib
-          // item.transform is [a,b,c,d,e,f] where e=x, f=baseline y in PDF space
-          const pdfX = item.transform[4];
-          const pdfY = item.transform[5]; // this is the text baseline in PDF space
+          // Apply scale-1 viewport transform then convert y: canvas-y is from top,
+          // PDF user space y is from bottom. This handles PDFs with non-standard CTMs.
+          const tx1 = pdfjs.Util.transform(viewport1.transform, item.transform);
+          const pdfX = tx1[4];
+          const pdfY = viewport1.height - tx1[5]; // canvas-y (top) → PDF-y (bottom)
           const pdfFontSize = Math.max(Math.abs(item.transform[3]) || 12, 6);
 
           items.push({

@@ -53,15 +53,16 @@ export async function POST(req: NextRequest) {
     const page = pages[edit.pageIndex];
     const fontSize = Math.max(edit.fontSize, 6);
 
-    // Use fontSize as the most reliable measure of text height
-    const textH = Math.max(edit.height, fontSize) * 1.5;
+    // Rectangle anchored to baseline (edit.y): cover descenders below and ascenders above
+    const rectY = edit.y - fontSize * 0.3;
+    const rectH = fontSize * 1.6;
 
-    // White rectangle — generous padding to ensure full coverage of original text
+    // White rectangle — covers original text
     page.drawRectangle({
       x: edit.x - 2,
-      y: edit.y - textH * 0.4,
+      y: rectY,
       width: edit.width + 4,
-      height: textH,
+      height: rectH,
       color: rgb(1, 1, 1),
     });
 
