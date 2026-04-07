@@ -13,6 +13,9 @@ interface Edit {
   width: number;
   height: number;
   fontSize: number;
+  // Canvas-space coords for reliable PDF positioning
+  canvasX: number;
+  canvasBaselineY: number;
 }
 
 export async function POST(req: NextRequest) {
@@ -51,26 +54,29 @@ export async function POST(req: NextRequest) {
     if (edit.pageIndex >= pages.length) continue;
 
     const page = pages[edit.pageIndex];
+    const { height: pageH } = page.getSize();
     const fontSize = Math.max(edit.fontSize, 6);
 
-    // Rectangle anchored to baseline (edit.y): cover descenders below and ascenders above
-    const rectY = edit.y - fontSize * 0.3;
-    const rectH = fontSize * 1.6;
+    // Convert canvas coords (SCALE=1.5, y from top) → PDF coords (y from bottom)
+    // canvasX and canvasBaselineY are the raw pdfjs-rendered positions we know are correct.
+    const RENDER_SCALE = 1.5;
+    const drawX = edit.canvasX / RENDER_SCALE;
+    const drawY = pageH - edit.canvasBaselineY / RENDER_SCALE;
 
-    // White rectangle — covers original text
+    // White rectangle — covers the original text
     page.drawRectangle({
-      x: edit.x - 2,
-      y: rectY,
+      x: drawX - 2,
+      y: drawY - fontSize * 0.3,
       width: edit.width + 4,
-      height: rectH,
+      height: fontSize * 1.6,
       color: rgb(1, 1, 1),
     });
 
     // Draw new text at the original baseline
     if (edit.newText.trim()) {
       page.drawText(edit.newText, {
-        x: edit.x,
-        y: edit.y,
+        x: drawX,
+        y: drawY,
         size: fontSize,
         font: helvetica,
         color: rgb(0, 0, 0),

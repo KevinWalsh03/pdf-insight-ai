@@ -17,6 +17,8 @@ interface TextItem {
   canvasY: number;
   canvasWidth: number;
   canvasHeight: number;
+  // Raw canvas baseline (tx[5] at SCALE) — used by API for reliable PDF positioning
+  canvasBaselineY: number;
 }
 
 interface Edit {
@@ -29,6 +31,9 @@ interface Edit {
   width: number;
   height: number;
   fontSize: number;
+  // Canvas-space coords sent to API for reliable coordinate conversion
+  canvasX: number;
+  canvasBaselineY: number;
 }
 
 interface PageData {
@@ -115,6 +120,7 @@ export default function PDFEditor({ pdfUrl, documentId, fileName }: Props) {
             canvasY,
             canvasWidth,
             canvasHeight,
+            canvasBaselineY: tx[5], // raw canvas baseline y at SCALE — used by API
           });
         });
 
@@ -196,6 +202,8 @@ export default function PDFEditor({ pdfUrl, documentId, fileName }: Props) {
           width: item.width,
           height: item.height,
           fontSize: item.fontSize,
+          canvasX: item.canvasX,
+          canvasBaselineY: item.canvasBaselineY,
         };
       });
 
