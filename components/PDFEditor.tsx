@@ -89,8 +89,10 @@ export default function PDFEditor({ pdfUrl, documentId, fileName }: Props) {
         const textContent = await page.getTextContent();
 
         const items: TextItem[] = [];
-        (textContent.items as any[]).forEach((item, idx) => {
+        let filteredIdx = 0;
+        (textContent.items as any[]).forEach((item) => {
           if (!item.str?.trim()) return;
+          const idx = filteredIdx++;
 
           // Screen coordinates for overlay
           const tx = pdfjs.Util.transform(viewport.transform, item.transform);
@@ -173,10 +175,14 @@ export default function PDFEditor({ pdfUrl, documentId, fileName }: Props) {
     return key in edits ? edits[key] : originalText;
   }
 
+  function findItem(pi: number, ii: number) {
+    return pageData[pi]?.textItems.find((t) => t.itemIndex === ii);
+  }
+
   function hasChanges() {
     return Object.entries(edits).some(([key, val]) => {
       const [pi, ii] = key.split("-").map(Number);
-      return pageData[pi]?.textItems[ii]?.text !== val;
+      return findItem(pi, ii)?.text !== val;
     });
   }
 
@@ -187,11 +193,11 @@ export default function PDFEditor({ pdfUrl, documentId, fileName }: Props) {
     const changes: Edit[] = Object.entries(edits)
       .filter(([key, val]) => {
         const [pi, ii] = key.split("-").map(Number);
-        return pageData[pi]?.textItems[ii]?.text !== val;
+        return findItem(pi, ii)?.text !== val;
       })
       .map(([key, newText]) => {
         const [pi, ii] = key.split("-").map(Number);
-        const item = pageData[pi].textItems[ii];
+        const item = findItem(pi, ii)!;
         return {
           pageIndex: item.pageIndex,
           itemIndex: item.itemIndex,
