@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 
 // Dynamically import editor (uses browser APIs, no SSR)
 const PDFEditor = dynamic(() => import("@/components/PDFEditor"), { ssr: false });
+const ChatSidebar = dynamic(() => import("./ChatSidebar"), { ssr: false });
 
 export default async function DocumentPage({ params }: { params: { id: string } }) {
   const { userId } = await auth();
@@ -121,6 +122,9 @@ export default async function DocumentPage({ params }: { params: { id: string } 
             <p className="text-center text-gray-400 text-xs">
               Uploaded {new Date(doc.created_at).toLocaleDateString()}
             </p>
+
+            {/* AI Chat */}
+            <ChatSidebar documentId={doc.id} />
           </div>
 
         </div>
