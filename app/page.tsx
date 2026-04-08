@@ -54,7 +54,7 @@ export default function HomePage() {
 
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-28 text-center">
           <span className="inline-block mb-6 px-4 py-1.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-sm font-medium">
-            Now in Early Access
+            Free to get started
           </span>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight mb-6">
@@ -73,7 +73,7 @@ export default function HomePage() {
           <SignedOut>
             <SignUpButton mode="modal">
               <button className="inline-block gradient-bg text-white font-semibold px-8 py-3.5 rounded-xl text-lg shadow-lg hover:opacity-90 transition hover:scale-105">
-                Get Early Access — It's Free
+                Start for Free
               </button>
             </SignUpButton>
           </SignedOut>
