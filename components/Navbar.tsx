@@ -62,7 +62,7 @@ export default function Navbar() {
             </SignInButton>
             <SignUpButton mode="modal">
               <button className="ml-2 gradient-bg text-white text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition">
-                Get Early Access
+                Start for Free
               </button>
             </SignUpButton>
           </SignedOut>
@@ -115,7 +115,7 @@ export default function Navbar() {
             </SignInButton>
             <SignUpButton mode="modal">
               <button className="gradient-bg text-white text-sm font-semibold px-4 py-2 rounded-lg text-center">
-                Get Early Access
+                Start for Free
               </button>
             </SignUpButton>
           </SignedOut>
